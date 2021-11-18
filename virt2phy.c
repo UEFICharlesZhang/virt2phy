@@ -58,7 +58,7 @@ int read_pagemap(char * path_buf, unsigned long virt_addr){
     //Shifting by virt-addr-offset number of bytes
     //and multiplying by the size of an address (the size of an entry in pagemap file)
     file_offset = virt_addr / page_size * PAGEMAP_ENTRY;
-    printf("Vaddr: 0x%lx, Page_size: %lld, Entry_size: %d\n", virt_addr, page_size, PAGEMAP_ENTRY);
+    printf("Vaddr: 0x%lx, Page_size: %lld, Entry_size: %d\n", virt_addr, (long long int)page_size, PAGEMAP_ENTRY);
     printf("Reading %s at 0x%llx\n", path_buf, (unsigned long long) file_offset);
     status = fseek(f, file_offset, SEEK_SET);
     if(status){
@@ -88,7 +88,7 @@ int read_pagemap(char * path_buf, unsigned long virt_addr){
     printf("Result: 0x%llx\n", (unsigned long long) read_val);
     if(GET_BIT(read_val, 63)) {
         uint64_t pfn = GET_PFN(read_val);
-        printf("PFN: 0x%llx (0x%llx)\n", pfn, pfn * page_size + virt_addr % page_size);
+        printf("PFN: 0x%llx (0x%llx)\n",(long long unsigned int)pfn,(long long unsigned int)( pfn * page_size + virt_addr % page_size));
     } else
         printf("Page not present\n");
     if(GET_BIT(read_val, 62))
