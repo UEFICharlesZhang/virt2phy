@@ -22,17 +22,17 @@ char *end;
 
 int pid_self;
 
-unsigned long int read_virt(char *path_buf, unsigned long virt_addr)
+unsigned long int read_virt(char *pagemap_path_buf, unsigned long virt_addr)
 {
     int i, c, status;
 
 #if DEBUG
     printf("Big endian? %d\n", is_bigendian());
 #endif
-    f = fopen(path_buf, "rb");
+    f = fopen(pagemap_path_buf, "rb");
     if (!f)
     {
-        printf("Error! Cannot open %s\n", path_buf);
+        printf("Error! Cannot open %s\n", pagemap_path_buf);
         return -1;
     }
 
@@ -41,7 +41,7 @@ unsigned long int read_virt(char *path_buf, unsigned long virt_addr)
     file_offset = virt_addr / page_size * PAGEMAP_ENTRY;
 #if DEBUG
     printf("Vaddr: 0x%lx, Page_size: %lld, Entry_size: %d\n", virt_addr, (long long int)page_size, PAGEMAP_ENTRY);
-    printf("Reading %s at 0x%llx\n", path_buf, (unsigned long long)file_offset);
+    printf("Reading %s at 0x%llx\n", pagemap_path_buf, (unsigned long long)file_offset);
 #endif
     status = fseek(f, file_offset, SEEK_SET);
     if (status)
@@ -107,21 +107,21 @@ int parasmaps(int pid)
     unsigned long offset;
     unsigned long p_start;
 
-    char path_buf[0x100] = {};
+    char pagemap_path_buf[0x100] = {};
     char maps_path_buf[0x100] = {};
 
     if (pid != -1)
     {
-        sprintf(path_buf, "/proc/%u/pagemap", pid);
+        sprintf(pagemap_path_buf, "/proc/%u/pagemap", pid);
         sprintf(maps_path_buf, "/proc/%u/maps", pid);
     }
     else
     {
-        sprintf(path_buf, "/proc/self/pagemap");
+        sprintf(pagemap_path_buf, "/proc/self/pagemap");
         sprintf(maps_path_buf, "/proc/self/maps");
     }
 
-    printf("maps_path_buf: %s, path_buf: %s\n", maps_path_buf, path_buf);
+    printf("memmap for pid: %d\n", pid);
 
     f_maps = fopen(maps_path_buf, "rb");
     if (!f_maps)
@@ -130,21 +130,42 @@ int parasmaps(int pid)
         return -1;
     }
 
-    printf("memory map for pid: %s;\n", maps_path_buf);
+    printf("  virtual memory             physical memory           attr offset  major:minor inode   name\n");
+	while (fgets(maps_path_buf, sizeof(maps_path_buf), f_maps) != NULL) {
+		unsigned long vm_start;
+		unsigned long vm_end;
+		unsigned long long pgoff;
+		int major, minor;
+		char r, w, x, s;
+		unsigned long ino;
+		int n;
+        char name[128]={};
 
-    while (fscanf(f_maps, "%zx-%zx %s %zx %*[^\n]\n", &start, &end, buf, &offset) == 4)
-    {
-        printf("  v_start: %012lX-%012lX, ", start, end);
-        p_start = read_virt(path_buf, start);
-        printf("  p_start: %012lX-%012lX %s %08lX \n", p_start, p_start == 0 ? 0 : p_start + end - start, buf, offset);
-    }
+		n = sscanf(maps_path_buf, "%lx-%lx %c%c%c%c %llx %x:%x %lu                  %s",
+			   &vm_start,
+			   &vm_end,
+			   &r, &w, &x, &s,
+			   &pgoff,
+			   &major, &minor,
+			   &ino,
+               name);
+		if (n < 10) {
+			fprintf(stderr, "unexpected line: %s\n", maps_path_buf);
+			continue;
+		}
+        printf("  %012lX-%012lX, ", vm_start, vm_end);
+        p_start = read_virt(pagemap_path_buf, vm_start);
+        printf("%012lX-%012lX ", p_start, p_start == 0 ? 0 : p_start + vm_end - vm_start);
+        printf("%c%c%c%c %08llx %04x:%04x %08lu %s\n", r, w, x, s, pgoff,major, minor,ino,name);
+
+	}
 
     fclose(f_maps);
 }
 int main(int argc, char **argv)
 {
     int pid;
-    char path_buf[0x100] = {};
+    char pagemap_path_buf[0x100] = {};
 
     if (argc != 2)
     {
