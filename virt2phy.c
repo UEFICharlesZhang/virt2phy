@@ -6,7 +6,7 @@
 #include <stdint.h>
 #include <string.h>
 
-#define DEBUG 1
+#define DEBUG 0
 
 #define PAGEMAP_ENTRY 8
 #define GET_BIT(X, Y) (X & ((uint64_t)1 << Y)) >> Y
