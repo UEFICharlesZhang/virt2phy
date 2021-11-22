@@ -17,14 +17,10 @@ const int __endian_bit = 1;
 
 uint64_t read_val, file_offset, page_size;
 
-FILE *f;
-char *end;
-
-int pid_self;
-
 unsigned long int read_virt(char *pagemap_path_buf, unsigned long virt_addr)
 {
     int i, c, status;
+    FILE *f;
 
 #if DEBUG
     printf("Big endian? %d\n", is_bigendian());
@@ -131,40 +127,42 @@ int parasmaps(int pid)
     }
 
     printf("  virtual memory             physical memory           attr offset  major:minor inode   name\n");
-	while (fgets(maps_path_buf, sizeof(maps_path_buf), f_maps) != NULL) {
-		unsigned long vm_start;
-		unsigned long vm_end;
-		unsigned long long pgoff;
-		int major, minor;
-		char r, w, x, s;
-		unsigned long ino;
-		int n;
-        char name[128]={};
+    while (fgets(maps_path_buf, sizeof(maps_path_buf), f_maps) != NULL)
+    {
+        unsigned long vm_start;
+        unsigned long vm_end;
+        unsigned long long pgoff;
+        int major, minor;
+        char r, w, x, s;
+        unsigned long ino;
+        int n;
+        char name[128] = {};
 
-		n = sscanf(maps_path_buf, "%lx-%lx %c%c%c%c %llx %x:%x %lu                  %s",
-			   &vm_start,
-			   &vm_end,
-			   &r, &w, &x, &s,
-			   &pgoff,
-			   &major, &minor,
-			   &ino,
-               name);
-		if (n < 10) {
-			fprintf(stderr, "unexpected line: %s\n", maps_path_buf);
-			continue;
-		}
+        n = sscanf(maps_path_buf, "%lx-%lx %c%c%c%c %llx %x:%x %lu                  %s",
+                   &vm_start,
+                   &vm_end,
+                   &r, &w, &x, &s,
+                   &pgoff,
+                   &major, &minor,
+                   &ino,
+                   name);
+        if (n < 10)
+        {
+            fprintf(stderr, "unexpected line: %s\n", maps_path_buf);
+            continue;
+        }
         printf("  %012lX-%012lX, ", vm_start, vm_end);
         p_start = read_virt(pagemap_path_buf, vm_start);
         printf("%012lX-%012lX ", p_start, p_start == 0 ? 0 : p_start + vm_end - vm_start);
-        printf("%c%c%c%c %08llx %04x:%04x %08lu %s\n", r, w, x, s, pgoff,major, minor,ino,name);
-
-	}
+        printf("%c%c%c%c %08llx %04x:%04x %08lu %s\n", r, w, x, s, pgoff, major, minor, ino, name);
+    }
 
     fclose(f_maps);
 }
 int main(int argc, char **argv)
 {
     int pid;
+    char *end;
     char pagemap_path_buf[0x100] = {};
 
     if (argc != 2)
